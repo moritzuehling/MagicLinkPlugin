@@ -28,17 +28,11 @@ namespace MagicLinkPlugin
                     Proxy = new WebProxy("http://127.0.0.1:8118")
                 };
 
-                try
-                {
-                    var img = await ImageHander.GetImage(link, clientHandler);
+                var img = await ImageHander.GetImage(link, clientHandler);
 
-                    if (img != null)
-                        foreach (var chan in channels)
-                            await chan.SendMessage(String.Format(ResizeImg, link, img));
-                }
-                catch
-                {
-                }
+                if (img != null)
+                    foreach (var chan in channels)
+                        await chan.SendMessage(String.Format(ResizeImg, link, img));
             }
         }
 
