@@ -30,10 +30,26 @@ namespace MagicLinkPlugin
 
                 var img = await ImageHander.GetImage(link, clientHandler);
 
-                if (img != null)
-                    foreach (var chan in channels)
-                        await chan.SendMessage(String.Format(ResizeImg, link, img));
+                if (img == null)
+                    return;
+
+                string result = $"({ GetFileSizeString(img.Length) })<br>" +
+                    String.Format(ResizeImg, link, img);
+
+                foreach (var chan in channels)
+                    await chan.SendMessage(result);
             }
+        }
+
+        public string GetFileSizeString(int size)
+        {
+            if (size < 1024)
+                return size + " Bytes";
+
+            if (size < 1024 * 1024)
+                return (size / 1024.0).ToString("0.00") + " KiB";
+
+            return (size / (1024.0 * 1024.0)).ToString("0.00") + " MiB";
         }
 
     }
