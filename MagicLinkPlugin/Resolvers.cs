@@ -97,6 +97,16 @@ namespace MagicLinkPlugin
                 }
             }
 
+            var arr = uri.AbsolutePath.Split('/');
+            if (arr.Length == 2 && !arr[1].Contains("."))
+            {
+                return new ResolveResult
+                {
+                    Uri = new Uri("http://i.imgur.com/" + arr[1] + ".jpg"),
+                    StopResolving = false
+                };
+            }
+
             return null;
         }
 
