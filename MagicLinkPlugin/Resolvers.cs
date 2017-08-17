@@ -71,7 +71,7 @@ namespace MagicLinkPlugin
             if (uri.Host != "imgur.com" && !uri.Host.EndsWith(".imgur.com"))
                 return null;
 
-            if (uri.AbsolutePath.StartsWith("/a/"))
+            if (uri.AbsolutePath.StartsWith("/a/") || uri.AbsolutePath.StartsWith("/gallery/"))
             {
                 const string endpoint = "https://api.imgur.com/3/album/";
 
