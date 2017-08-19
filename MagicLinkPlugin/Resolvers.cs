@@ -9,12 +9,48 @@ using System.Web;
 
 namespace MagicLinkPlugin
 {
-    static class Resolvers
+    public static class Resolvers
     {
         public struct ResolveResult
         {
             public Uri Uri { get; set; }
             public bool StopResolving { get; set; }
+        }
+
+
+        static readonly Func<Uri, Task<ResolveResult?>>[] ResolveFunctions = new Func<Uri, Task<ResolveResult?>>[]
+        {
+            ResolveReddit,
+            Resolve9Gag,
+            ResolveYouTube,
+            ResolveImgur,
+        };
+
+        public async static Task<ResolveResult> Resolve(Uri uri)
+        {
+            foreach (var resolver in ResolveFunctions)
+            {
+                try
+                {
+                    var newUri = await resolver(uri);
+                    if (newUri != null && newUri.HasValue)
+                    {
+                        uri = newUri.Value.Uri;
+                        if (newUri.Value.StopResolving)
+                            return newUri.Value;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+
+            return new ResolveResult
+            {
+                Uri = uri,
+                StopResolving = false,
+            };
         }
 
         public async static Task<ResolveResult?> ResolveReddit(Uri uri)

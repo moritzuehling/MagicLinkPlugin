@@ -13,7 +13,7 @@ using static MagicLinkPlugin.Resolvers;
 
 namespace MagicLinkPlugin
 {
-    static class ImageHander
+    public static class ImageHander
     {
         const int MAX_IMAGE_SIZE = 10 * 1024 * 1024;
         const int MAX_DIRECT_SEND = 1 * 1024 * 1024;
@@ -21,18 +21,11 @@ namespace MagicLinkPlugin
         const int MAX_HEIGHT = 800;
 
 
-        static readonly Func<Uri, Task<ResolveResult?>>[] Resolvers = new Func<Uri, Task<ResolveResult?>>[]
-        {
-            ResolveReddit,
-            Resolve9Gag,
-            ResolveYouTube,
-            ResolveImgur,
-        };
 
         public async static Task<string> GetImage(string url, HttpClientHandler handler = null)
         {
             var uri = new Uri(url);
-            var resultingUri = await ResolveEverything(uri);
+            var resultingUri = await Resolvers.Resolve(uri);
 
             using (var client = handler != null ? new HttpClient(handler) : new HttpClient())
             {
@@ -50,34 +43,6 @@ namespace MagicLinkPlugin
                 return "data:" + data.Item2 + ";base64," + Convert.ToBase64String(data.Item1);
             }
         }
-
-        async static Task<ResolveResult> ResolveEverything(Uri uri)
-        {
-            foreach (var resolver in Resolvers)
-            {
-                try
-                {
-                    var newUri = await resolver(uri);
-                    if (newUri != null && newUri.HasValue)
-                    {
-                        uri = newUri.Value.Uri;
-                        if (newUri.Value.StopResolving)
-                            return newUri.Value;
-                    }
-                }
-                catch
-                {
-                }
-            }
-
-
-            return new ResolveResult
-            {
-                Uri = uri,
-                StopResolving = false,
-            };
-        }
-
 
         async static Task<bool> IsImage(Uri url, HttpClient client)
         {
