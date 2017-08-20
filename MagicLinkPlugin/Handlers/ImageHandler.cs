@@ -78,7 +78,7 @@ namespace MagicLinkPlugin
             return type.StartsWith("image/");
         }
 
-        async Task<Tuple<byte[], string>> DownloadAndDownsizeImage(Uri uri, HttpClient client)
+        public static async Task<Tuple<byte[], string>> DownloadAndDownsizeImage(Uri uri, HttpClient client, int maxWidth = MAX_WIDTH, int maxHeight = MAX_HEIGHT)
         {
             using (var res = await client.GetAsync(uri))
             {
@@ -90,11 +90,11 @@ namespace MagicLinkPlugin
                 using (var ms = new MemoryStream(content))
                 using (var img = Image.FromStream(ms))
                 {
-                    if (img.Width <= MAX_WIDTH && img.Height <= MAX_HEIGHT && content.Length <= MAX_DIRECT_SEND)
+                    if (img.Width <= maxWidth && img.Height <= maxHeight && content.Length <= MAX_DIRECT_SEND)
                         return new Tuple<byte[], string>(content, res.Content.Headers.ContentType.MediaType);
 
-                    double wFactor = Math.Max((double)img.Width / MAX_WIDTH, 1.0);
-                    double hFactor = Math.Max((double)img.Height / MAX_HEIGHT, 1.0);
+                    double wFactor = Math.Max((double)img.Width / maxWidth, 1.0);
+                    double hFactor = Math.Max((double)img.Height / maxHeight, 1.0);
 
                     double factor = wFactor > hFactor ? wFactor : hFactor;
 
