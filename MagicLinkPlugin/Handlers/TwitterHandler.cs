@@ -71,6 +71,7 @@ namespace MagicLinkPlugin
             {
                 Id = tweetId,
                 IncludeEntities = true,
+                TweetMode = TweetMode.Extended
             });
 
 
@@ -133,11 +134,13 @@ namespace MagicLinkPlugin
                 {
                     var image = await ImageHander.DownloadAndDownsizeImage(currentEntity.MediaUrl, client, maxWidth, maxHeight);
                     
-                    res.Append("<img src=\"");
+                    res.AppendFormat("<img height=\"{0}\" src=\"", maxHeight);
                     res.Append("data:" + image.Item2 + ";base64," + Convert.ToBase64String(image.Item1));
                     res.Append("\" alt=\"no\">");
-                    if (i % 2 == 0)
+
+                    if (i % 2 == 1)
                         res.Append("<br>");
+                    i++;
                 }
             }
 
@@ -150,15 +153,16 @@ namespace MagicLinkPlugin
             StringBuilder res = new StringBuilder();
             var entities = status.Entities.OrderBy(a => a.StartIndex).ToArray();
 
-            res.Append(status.Text.Substring(0, entities[0].StartIndex));
+            res.Append(status.FullText.Substring(0, entities[0].StartIndex));
 
             for (int i = 0; i < entities.Length; i++)
             {
                 var entity = entities[i];
-                var entityText = status.Text.Substring(entity.StartIndex, entity.EndIndex - entity.StartIndex);
-                var nextEnd = i + 1 < entities.Length ? entities[i + 1].StartIndex : status.Text.Length;
-                var bridgeText = status.Text.Substring(entity.EndIndex, nextEnd - entity.EndIndex);
-                
+                var entityText = status.FullText.Substring(entity.StartIndex, entity.EndIndex - entity.StartIndex);
+                var nextEnd = i + 1 < entities.Length ? entities[i + 1].StartIndex : status.FullText.Length;
+                var bridgeText = status.FullText.Substring(entity.EndIndex, nextEnd - entity.EndIndex);
+
+
                 switch (entity.EntityType)
                 {
                     case TwitterEntityType.HashTag:
@@ -166,13 +170,13 @@ namespace MagicLinkPlugin
                         res.AppendFormat("<span style=\"color: #{0}\">{1}</span>", status.User.ProfileLinkColor, entityText);
                         break;
                     case TwitterEntityType.Url:
-                        res.AppendFormat("<a href=\"{1}\" style=\"color:#{0}\">{1}</a>", status.User.ProfileLinkColor, entityText);
+                        res.AppendFormat("<a href=\"{2}\" style=\"color:#{0}\">{1}</a>", status.User.ProfileLinkColor, ((TwitterUrl)entity).DisplayUrl, ((TwitterUrl)entity).ExpandedValue);
                         break;
                     case TwitterEntityType.Media:
-                        var extendedMedia = status.ExtendedEntities.Media.Single(a => a.StartIndex == entity.StartIndex);
-                        if (extendedMedia.ExtendedEntityType != TwitterMediaType.Photo)
+                        var extendedEntity = (TwitterMedia)entity;
+                        if (extendedEntity.MediaType != TwitterMediaType.Photo)
                         {
-                            res.AppendFormat("<a href=\"{2}\" style=\"color:#{0}\">{1}</a>", status.User.ProfileLinkColor, entityText, extendedMedia.ExpandedUrl);
+                            res.AppendFormat("<a href=\"{2}\" style=\"color:#{0}\">{1}</a>", status.User.ProfileLinkColor, extendedEntity.DisplayUrl, extendedEntity.ExpandedUrl);
                         }
                         break;
                     default:
