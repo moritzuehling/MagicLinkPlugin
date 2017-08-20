@@ -9,7 +9,7 @@ using System.Web;
 
 namespace MagicLinkPlugin
 {
-    public static class Resolvers
+    public static class ImageResolvers
     {
         public struct ResolveResult
         {

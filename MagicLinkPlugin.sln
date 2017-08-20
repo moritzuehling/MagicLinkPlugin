@@ -5,6 +5,10 @@ VisualStudioVersion = 15.0.26430.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagicLinkPlugin", "MagicLinkPlugin\MagicLinkPlugin.csproj", "{0BE83B66-9026-4F39-80A7-F264841CA0A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagicLinkTester", "MagicLinkTester\MagicLinkTester.csproj", "{C357154C-D54D-4A64-A64E-05F8066AC7D9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MagicLinkPreview", "MagicLinkPreview\MagicLinkPreview.csproj", "{5AF93F59-A0FC-4BFD-A49D-492438FDF05D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{0BE83B66-9026-4F39-80A7-F264841CA0A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0BE83B66-9026-4F39-80A7-F264841CA0A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0BE83B66-9026-4F39-80A7-F264841CA0A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C357154C-D54D-4A64-A64E-05F8066AC7D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C357154C-D54D-4A64-A64E-05F8066AC7D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C357154C-D54D-4A64-A64E-05F8066AC7D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C357154C-D54D-4A64-A64E-05F8066AC7D9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5AF93F59-A0FC-4BFD-A49D-492438FDF05D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5AF93F59-A0FC-4BFD-A49D-492438FDF05D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5AF93F59-A0FC-4BFD-A49D-492438FDF05D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5AF93F59-A0FC-4BFD-A49D-492438FDF05D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

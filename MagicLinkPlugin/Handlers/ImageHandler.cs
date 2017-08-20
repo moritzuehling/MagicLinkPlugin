@@ -9,23 +9,33 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using static MagicLinkPlugin.Resolvers;
+using static MagicLinkPlugin.ImageResolvers;
 
 namespace MagicLinkPlugin
 {
-    public static class ImageHander
+    public class ImageHander : ILinkHandler
     {
         const int MAX_IMAGE_SIZE = 10 * 1024 * 1024;
         const int MAX_DIRECT_SEND = 1 * 1024 * 1024;
         const int MAX_WIDTH = 400;
         const int MAX_HEIGHT = 800;
 
+        private const string ResizeImg = @"({2})<br><a href=""{0}""><img src=""{1}"" alt=""image"" /></a>";
 
+        public async Task<string> TryExtractContent(string url, HttpClientHandler handler)
+        {
+            var img = await GetImage(url, handler);
 
-        public async static Task<string> GetImage(string url, HttpClientHandler handler = null)
+            if (img == null)
+                return null;
+
+            return String.Format(ResizeImg, url, img, GetFileSizeString(img.Length));
+        }
+
+        public async Task<string> GetImage(string url, HttpClientHandler handler)
         {
             var uri = new Uri(url);
-            var resultingUri = await Resolvers.Resolve(uri);
+            var resultingUri = await ImageResolvers.Resolve(uri);
 
             using (var client = handler != null ? new HttpClient(handler) : new HttpClient())
             {
@@ -44,7 +54,18 @@ namespace MagicLinkPlugin
             }
         }
 
-        async static Task<bool> IsImage(Uri url, HttpClient client)
+        static string GetFileSizeString(int size)
+        {
+            if (size < 1024)
+                return size + " Bytes";
+
+            if (size < 1024 * 1024)
+                return (size / 1024.0).ToString("0.00") + " KiB";
+
+            return (size / (1024.0 * 1024.0)).ToString("0.00") + " MiB";
+        }
+
+        async Task<bool> IsImage(Uri url, HttpClient client)
         {
             var res = await client.SendAsync(new HttpRequestMessage
             {
@@ -57,7 +78,7 @@ namespace MagicLinkPlugin
             return type.StartsWith("image/");
         }
 
-        async static Task<Tuple<byte[], string>> DownloadAndDownsizeImage(Uri uri, HttpClient client)
+        async Task<Tuple<byte[], string>> DownloadAndDownsizeImage(Uri uri, HttpClient client)
         {
             using (var res = await client.GetAsync(uri))
             {
@@ -97,7 +118,7 @@ namespace MagicLinkPlugin
                 }
             }
         }
-        private static ImageCodecInfo GetEncoderInfo(String mimeType)
+        private ImageCodecInfo GetEncoderInfo(String mimeType)
         {
             int j;
             ImageCodecInfo[] encoders;

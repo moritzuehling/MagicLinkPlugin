@@ -14,7 +14,6 @@ namespace MagicLinkPlugin
     class MagicLinks : PluginBase
     {
         private static readonly Regex LinkPattern = new Regex(@"^<a href=""([^""]*)"">([^<]*)<\/a>$", RegexOptions.Compiled);
-        private const string ResizeImg = @"<a href=""{0}""><img src=""{1}"" alt=""image"" /></a>";
 
         public override async Task OnChatMessage(IUser sender, IEnumerable<IChannelShim> channels, string message)
         {
@@ -28,16 +27,13 @@ namespace MagicLinkPlugin
                     Proxy = new WebProxy("http://127.0.0.1:8118")
                 };
 
-                var img = await ImageHander.GetImage(link, clientHandler);
+                var res = await LinkHandler.GetContent(link, clientHandler);
 
-                if (img == null)
+                if (res == null)
                     return;
 
-                string result = $"({ GetFileSizeString(img.Length) })<br>" +
-                    String.Format(ResizeImg, link, img);
-
                 foreach (var chan in channels)
-                    await chan.SendMessage(result);
+                    await chan.SendMessage(res);
             }
         }
 
