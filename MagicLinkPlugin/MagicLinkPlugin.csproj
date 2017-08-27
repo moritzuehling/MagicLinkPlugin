@@ -58,6 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Handlers\ImageHandler.cs" />
+    <Compile Include="Handlers\ImageLayouter.cs" />
     <Compile Include="ILinkHandler.cs" />
     <Compile Include="LinkHandler.cs" />
     <Compile Include="MagicLinks.cs" />

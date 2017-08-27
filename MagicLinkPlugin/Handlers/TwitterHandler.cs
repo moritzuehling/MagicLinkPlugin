@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MagicLinkPlugin.Handlers;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -74,30 +75,9 @@ namespace MagicLinkPlugin
                 TweetMode = TweetMode.Extended
             });
 
+            var authorTask = GetAuthorImage(tweet);
 
-            string resultingAuthorImage;
-            using(var client = new HttpClient())
-            {
-                // Download profile image
-                using (var stream = await client.GetStreamAsync(tweet.User.ProfileImageUrl))
-                using (var source = Image.FromStream(stream))
-                using (var target = new Bitmap(48, 48))
-                using (var graphics = Graphics.FromImage(target))
-                using (var textureBrush = new TextureBrush(source))
-                using(var ms = new MemoryStream())
-                {
-                    graphics.CompositingQuality = CompositingQuality.HighQuality;
-                    graphics.SmoothingMode = SmoothingMode.HighQuality;
-                    graphics.Clear(Color.White);
-                    graphics.FillEllipse(textureBrush, new Rectangle(0, 0, 48, 48));
-
-                    target.Save(ms, ImageFormat.Png);
-
-                    resultingAuthorImage = "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
-                }
-            }
-
-            var imageContent = await GetImageContent(tweet);
+            var imageContent = GetImageContent(tweet);
 
             string time;
 
@@ -107,45 +87,98 @@ namespace MagicLinkPlugin
             Thread.CurrentThread.CurrentCulture = oldCulture;
 
             var resultingHtml = Template
-                .Replace("@AuthorImage", resultingAuthorImage)
                 .Replace("@AuthorName", tweet.User.Name)
                 .Replace("@AuthorHandle", tweet.User.ScreenName)
                 .Replace("@time", time)
                 .Replace("@TweetContent", GetHtmlContent(tweet))
-                .Replace("@Images", imageContent);
+                .Replace("@AuthorImage", await authorTask)
+                .Replace("@Images", await imageContent);
 
             return resultingHtml;
         }
 
         async Task<string> GetImageContent(TwitterStatus tweet)
         {
-            if (tweet.ExtendedEntities == null)
+            var bitmaps = await DownloadBitmaps(tweet);
+            if (bitmaps == null)
                 return "";
 
-            StringBuilder res = new StringBuilder();
-            using (var client = new HttpClient())
+            if (bitmaps.Count == 1)
             {
-                var entities = tweet.ExtendedEntities.Media.ToArray();
-                int maxWidth = entities.Length > 2 ? SecondaryMaxWidth : DefaultMaxWidth;
-                int maxHeight = entities.Length > 2 ? SecondaryMaxHeight : DefaultMaxHeight;
-                int i = 0;
-
-                foreach (var currentEntity in entities)
-                {
-                    var image = await ImageHander.DownloadAndDownsizeImage(currentEntity.MediaUrl, client, maxWidth, maxHeight);
-                    
-                    res.AppendFormat("<img height=\"{0}\" src=\"", maxHeight);
-                    res.Append("data:" + image.Item2 + ";base64," + Convert.ToBase64String(image.Item1));
-                    res.Append("\" alt=\"no\">");
-
-                    if (i % 2 == 1)
-                        res.Append("<br>");
-                    i++;
-                }
+                using (var result = ImageLayouter.Layout1(bitmaps[0]))
+                    return EncodeImage(result);
+            }
+            else if (bitmaps.Count == 4)
+            {
+                using (var result = ImageLayouter.Layout4(bitmaps.ToArray()))
+                    return EncodeImage(result);
             }
 
-            return res.ToString();
+            return "";
+        }
 
+        string EncodeImage(Image img)
+        {
+            using (var ms = new MemoryStream())
+            {
+                img.Save(ms, ImageFormat.Jpeg);
+                return $"<img src=\"data:image/jpeg;base64,{ Convert.ToBase64String(ms.ToArray()) }\" alt=\"\">";
+            }
+        }
+
+        async Task<List<Image>> DownloadBitmaps(TwitterStatus tweet)
+        {
+            if (tweet.ExtendedEntities == null)
+                return null;
+
+            var entities = tweet.ExtendedEntities.Where(a => a.ExtendedEntityType == TwitterMediaType.Photo).ToArray();
+
+            if (entities.Length == 0)
+                return null;
+
+            var bitmapTasks = entities.Select(a => GetBitmap(a.MediaUrl)).ToArray();
+
+            List<Image> res = new List<Image>();
+            foreach (var task in bitmapTasks)
+                res.Add(await task);
+
+            return res;
+        }
+
+        async Task<Image> GetBitmap(Uri uri)
+        {
+            using (var client = new HttpClient())
+            {
+                var data = await client.GetByteArrayAsync(uri);
+                using (var ms = new MemoryStream(data))
+                {
+                    return Image.FromStream(ms);
+                }
+            }
+        }
+
+        async Task<string> GetAuthorImage(TwitterStatus tweet)
+        {
+            using (var client = new HttpClient())
+            {
+                // Download profile image
+                using (var stream = await client.GetStreamAsync(tweet.User.ProfileImageUrl))
+                using (var source = Image.FromStream(stream))
+                using (var target = new Bitmap(48, 48))
+                using (var graphics = Graphics.FromImage(target))
+                using (var textureBrush = new TextureBrush(source))
+                using (var ms = new MemoryStream())
+                {
+                    graphics.CompositingQuality = CompositingQuality.HighQuality;
+                    graphics.SmoothingMode = SmoothingMode.HighQuality;
+                    graphics.Clear(Color.White);
+                    graphics.FillEllipse(textureBrush, new Rectangle(0, 0, 48, 48));
+
+                    target.Save(ms, ImageFormat.Png);
+
+                    return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
+                }
+            }
         }
 
         string GetHtmlContent(TwitterStatus status)
