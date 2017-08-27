@@ -22,14 +22,14 @@ namespace MagicLinkPlugin
 
         private const string ResizeImg = @"({2})<br><a href=""{0}""><img src=""{1}"" alt=""image"" /></a>";
 
-        public async Task<string> TryExtractContent(string url, HttpClientHandler handler)
+        public async Task<string[]> TryExtractContent(string url, HttpClientHandler handler)
         {
             var img = await GetImage(url, handler);
 
             if (img == null)
                 return null;
 
-            return String.Format(ResizeImg, url, img, GetFileSizeString(img.Length));
+            return new string[] { String.Format(ResizeImg, url, img, GetFileSizeString(img.Length)) };
         }
 
         public async Task<string> GetImage(string url, HttpClientHandler handler)

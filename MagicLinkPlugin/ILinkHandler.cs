@@ -14,6 +14,8 @@ namespace MagicLinkPlugin
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        Task<string> TryExtractContent(string url, HttpClientHandler handler);
+        Task<string[]> TryExtractContent(string url, HttpClientHandler handler);
+
+
     }
 }

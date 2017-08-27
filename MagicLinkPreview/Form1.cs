@@ -17,7 +17,7 @@ namespace MagicLinkPreview
             InitializeComponent();
             webBrowser1.Navigate("about:blank");
 
-            textBox1.Text = "https://twitter.com/imgur/status/898891550138159104";
+            textBox1.Text = "https://gist.github.com/moritzuehling/823e257f5be86f570b163bb7d4d2fac9";
         }
         
 
@@ -34,19 +34,32 @@ namespace MagicLinkPreview
                 "</body></html>";
 
 
-            var res = await MagicLinkPlugin.LinkHandler.GetContent(textBox1.Text);
+            var resArr = await MagicLinkPlugin.LinkHandler.GetContent(textBox1.Text);
+            
+            if (resArr != null && resArr.Length > 0)
+                Clipboard.SetText(resArr[0]);
 
-            if (res != null)
-                Clipboard.SetText(res);
+            if (resArr == null || resArr.Length == 0)
+            {
+                webBrowser1.DocumentText =
+                    "<html><head><style>img { border-style:none; } </style></head><body style='font-family: Arial;'>" +
+                    "(nothing to see)" +
+                    "</body></html>";
+                return;
+            }
+            
 
-            if (res == null)
-                res = "(no result given)";
+            string txt = "<html><head><style>img { border-style:none; } </style></head><body style='font-family: Arial;'>";
+            foreach (var res in resArr)
+            {
+                txt += "[12:00] Server: ";
+                txt += res;
+                txt += "<hr>";
+            }
+                
+            txt += "</body></html>";
 
-            webBrowser1.DocumentText =
-                "<html><head><style>img { border-style:none; } </style></head><body style='font-family: Arial;'>" +
-                "Server: " +
-                res +
-                "</body></html>";
+            webBrowser1.DocumentText = txt;
         }
     }
 }

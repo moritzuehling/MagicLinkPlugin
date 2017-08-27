@@ -33,7 +33,8 @@ namespace MagicLinkPlugin
                     return;
 
                 foreach (var chan in channels)
-                    await chan.SendMessage(res);
+                    foreach (var msg in res)
+                        await chan.SendMessage(msg);
             }
         }
 

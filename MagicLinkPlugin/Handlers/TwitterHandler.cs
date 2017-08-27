@@ -41,7 +41,7 @@ namespace MagicLinkPlugin
             }
         }
 
-        public async Task<string> TryExtractContent(string url, HttpClientHandler handler)
+        public async Task<string[]> TryExtractContent(string url, HttpClientHandler handler)
         {
             var uri = new Uri(url);
             if (uri.Host != "twitter.com")
@@ -58,7 +58,7 @@ namespace MagicLinkPlugin
             if (!long.TryParse(urlSegements[3], out long tweetId))
                 return null;
 
-            return await Extract(tweetId);
+            return new string[] { await Extract(tweetId) };
         }
 
         public async Task<string> Extract(long tweetId)

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MagicLinkPlugin.Handlers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -13,10 +14,11 @@ namespace MagicLinkPlugin
         static ILinkHandler[] Handlers = new ILinkHandler[]
         {
             new TwitterHandler(),
+            new GistHandler(),
             new ImageHander(),
         };
 
-        public async static Task<string> GetContent(string url, HttpClientHandler handler = null)
+        public async static Task<string[]> GetContent(string url, HttpClientHandler handler = null)
         {
             foreach (var linkHandler in Handlers)
             {
