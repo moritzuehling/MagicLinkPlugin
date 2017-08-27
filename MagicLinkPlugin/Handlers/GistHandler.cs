@@ -14,6 +14,7 @@ namespace MagicLinkPlugin.Handlers
 {
     class GistHandler : ILinkHandler
     {
+        const int MAX_FILES = 3;
         const int MAX_LINES = 25;
         const int MAX_COLUMN = 200;
 
@@ -47,6 +48,7 @@ namespace MagicLinkPlugin.Handlers
                 var files = obj["files"];
 
                 return files
+                    .Take(MAX_FILES)
                     .Select(a => FormatFile
                     (
                         ((JProperty)a).Value["filename"].ToObject<string>(),
