@@ -108,6 +108,16 @@ namespace MagicLinkPlugin
                 using (var result = ImageLayouter.Layout1(bitmaps[0]))
                     return EncodeImage(result);
             }
+            else if (bitmaps.Count == 2)
+            {
+                using (var result = ImageLayouter.Layout2(bitmaps.ToArray()))
+                    return EncodeImage(result);
+            }
+            else if (bitmaps.Count == 3)
+            {
+                using (var result = ImageLayouter.Layout3(bitmaps.ToArray()))
+                    return EncodeImage(result);
+            }
             else if (bitmaps.Count == 4)
             {
                 using (var result = ImageLayouter.Layout4(bitmaps.ToArray()))

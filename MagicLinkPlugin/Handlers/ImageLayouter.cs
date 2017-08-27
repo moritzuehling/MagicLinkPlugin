@@ -53,6 +53,70 @@ namespace MagicLinkPlugin.Handlers
             return result;
         }
 
+        public static Bitmap Layout2(Image[] bitmaps)
+        {
+            var width = MAX_WIDTH;
+            var height = MAX_WIDTH / 2;
+
+            Bitmap result = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.White);
+                g.InterpolationMode = InterpolationMode.High;
+
+                int widthDelim = (int)(width * .5);
+
+                g.Clip = new Region(new Rectangle(0, 0, widthDelim - 1, height));
+                var size = GetScaled(bitmaps[0], height);
+                g.DrawImage(bitmaps[0], 0 - (size.Width - widthDelim) / 2, 0, size.Width, size.Height);
+
+                g.Clip = new Region(new Rectangle(widthDelim, 0, widthDelim, height));
+                size = GetScaled(bitmaps[1], height);
+                g.DrawImage(bitmaps[1], widthDelim - (size.Width - widthDelim) / 2, 0, size.Width, size.Height);
+
+                g.Clip = new Region(new Rectangle(0, 0, width, height));
+
+                RoundCorners(g, width, height);
+            }
+
+            return result;
+        }
+
+        public static Bitmap Layout3(Image[] bitmaps)
+        {
+            var width = 400;
+            var height = 266;
+
+            int widthDelim = 267;
+            int smallWidthDelim = width - widthDelim;
+            int heightDelim = height / 2;
+
+            Bitmap result = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.White);
+                g.InterpolationMode = InterpolationMode.High;
+
+                g.Clip = new Region(new Rectangle(0, 0, widthDelim - 1, height));
+                var size = GetScaled(bitmaps[0], height);
+                g.DrawImage(bitmaps[0], 0 - (size.Width - widthDelim) / 2, 0, size.Width, size.Height);
+
+                g.Clip = new Region(new Rectangle(widthDelim, 0, smallWidthDelim, heightDelim - 1));
+                size = GetScaled(bitmaps[1], heightDelim);
+                g.DrawImage(bitmaps[1], widthDelim - (size.Width - smallWidthDelim) / 2, 0, size.Width, size.Height);
+
+                g.Clip = new Region(new Rectangle(widthDelim, heightDelim, smallWidthDelim, heightDelim));
+                size = GetScaled(bitmaps[2], heightDelim);
+                g.DrawImage(bitmaps[2], widthDelim - (size.Width - smallWidthDelim) / 2, heightDelim, size.Width, size.Height);
+
+                g.Clip = new Region(new Rectangle(0, 0, width, height));
+
+                RoundCorners(g, width, height);
+            }
+
+            return result;
+        }
+
         public static Bitmap Layout4(Image[] bitmaps)
         {
             bitmaps = bitmaps.OrderByDescending(a => a.Width * a.Height).ToArray();
