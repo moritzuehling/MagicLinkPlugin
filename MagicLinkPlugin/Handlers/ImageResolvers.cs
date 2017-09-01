@@ -20,7 +20,6 @@ namespace MagicLinkPlugin
 
         static readonly Func<Uri, Task<ResolveResult?>>[] ResolveFunctions = new Func<Uri, Task<ResolveResult?>>[]
         {
-            ResolveReddit,
             Resolve9Gag,
             ResolveYouTube,
             ResolveImgur,
@@ -46,61 +45,11 @@ namespace MagicLinkPlugin
                 }
             }
 
-
             return new ResolveResult
             {
                 Uri = uri,
                 StopResolving = false,
             };
-        }
-
-        public async static Task<ResolveResult?> ResolveReddit(Uri uri)
-        {
-            if (uri.Host != "reddit.com" && !uri.Host.EndsWith(".reddit.com"))
-                return null;
-
-            var path = uri.AbsolutePath.Split('/');
-
-            if (path.Length < 5)
-                return null;
-
-            if (path[1] != "r")
-                return null;
-
-            if (path[3] != "comments")
-                return null;
-
-            var sub = path[2];
-            var thing = path[4];
-
-            var redditEndpoint = "https://www.reddit.com/r/" + sub + "/comments/" + thing + "/.json";
-
-            using (var client = new HttpClient())
-            {
-                var response = await client.GetStringAsync(redditEndpoint);
-                var res = JArray.Parse(response);
-                var thingUrl = res[0]?["data"]?["children"]?[0]?["data"]?["url"]?.ToObject<string>();
-                if (thingUrl == null)
-                    return null;
-
-                var thingUri = new Uri(thingUrl);
-
-                if (thingUri.Host == "v.redd.it")
-                {
-                    var previewUrl = res[0]?["data"]?["children"]?[0]?["data"]?["preview"]?["images"]?[0]["source"]["url"].ToObject<string>();
-                    return new ResolveResult
-                    {
-                        Uri = new Uri(previewUrl),
-                        StopResolving = true
-                    };
-                }
-
-                return new ResolveResult
-                {
-                    Uri = thingUri,
-                    StopResolving = false
-                };
-            }
         }
 
         public async static Task<ResolveResult?> ResolveImgur(Uri uri)
@@ -116,6 +65,7 @@ namespace MagicLinkPlugin
 
                 using (var client = new HttpClient())
                 {
+                    client.Timeout = TimeSpan.FromSeconds(10);
                     client.DefaultRequestHeaders.Add("Authorization", "Client-ID 493d66cf232857f");
                     var res = await client.GetStringAsync(endpoint + albumId);
                     var response = JObject.Parse(res);

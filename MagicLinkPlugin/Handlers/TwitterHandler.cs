@@ -159,6 +159,7 @@ namespace MagicLinkPlugin
         {
             using (var client = new HttpClient())
             {
+                client.Timeout = TimeSpan.FromSeconds(10);
                 var data = await client.GetByteArrayAsync(uri);
                 using (var ms = new MemoryStream(data))
                 {
@@ -171,6 +172,7 @@ namespace MagicLinkPlugin
         {
             using (var client = new HttpClient())
             {
+                client.Timeout = TimeSpan.FromSeconds(10);
                 // Download profile image
                 using (var stream = await client.GetStreamAsync(tweet.User.ProfileImageUrl))
                 using (var source = Image.FromStream(stream))

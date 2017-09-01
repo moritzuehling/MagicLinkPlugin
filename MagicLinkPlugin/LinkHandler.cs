@@ -13,6 +13,7 @@ namespace MagicLinkPlugin
 
         static ILinkHandler[] Handlers = new ILinkHandler[]
         {
+            new RedditHandler(),
             new TwitterHandler(),
             new GistHandler(),
             new ImageHander(),

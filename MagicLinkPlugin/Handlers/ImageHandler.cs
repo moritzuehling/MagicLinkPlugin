@@ -39,6 +39,7 @@ namespace MagicLinkPlugin
 
             using (var client = handler != null ? new HttpClient(handler) : new HttpClient())
             {
+                client.Timeout = TimeSpan.FromSeconds(10);
                 client.DefaultRequestHeaders.Add("User-Agent", "curl/7.54.1");
                 client.DefaultRequestHeaders.Add("Accept", "*/*");
                 var isImage = resultingUri.StopResolving || await IsImage(resultingUri.Uri, client);
