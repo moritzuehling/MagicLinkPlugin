@@ -24,6 +24,7 @@ namespace MagicLinkPlugin
             Resolve9Gag,
             ResolveYouTube,
             ResolveImgur,
+            ResolveFacebookFix,
         };
 
         public async static Task<ResolveResult> Resolve(Uri uri)
@@ -181,6 +182,21 @@ namespace MagicLinkPlugin
             return Task.FromResult<ResolveResult?>(new ResolveResult
             {
                 Uri = new Uri($"https://img.youtube.com/vi/{ query["v"] }/0.jpg"),
+                StopResolving = true,
+            });
+        }
+
+        public static Task<ResolveResult?> ResolveFacebookFix(Uri uri)
+        {
+            if (uri.Host != "fbcdn.net" && !uri.Host.EndsWith(".fbcdn.net"))
+                return null;
+
+            if (!uri.AbsolutePath.EndsWith(".png") && !uri.AbsolutePath.EndsWith(".jpg") && !uri.AbsolutePath.EndsWith(".jpeg") && !uri.AbsolutePath.EndsWith(".gif"))
+                return null;
+
+            return Task.FromResult<ResolveResult?>(new ResolveResult
+            {
+                Uri = uri,
                 StopResolving = true,
             });
         }
