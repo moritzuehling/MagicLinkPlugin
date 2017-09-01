@@ -68,7 +68,7 @@ namespace MagicLinkPlugin.Handlers
                 var scoreAlignment = "".PadLeft(Math.Max(3 - (scoreString.Length) / 2, 0), '.');
                 var scoreAlignment2 = scoreString.Length % 2 == 0 ? "." : "";
                 var time = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds((int)createdUtc);
-                var timeAgo = TimeAgo(time);
+                var timeAgo = time.TimeAgo();
 
                 string result = Template
                     .Replace("@ScoreAlign2", scoreAlignment2)
@@ -99,57 +99,9 @@ namespace MagicLinkPlugin.Handlers
                 result = result.Replace("@Content", content);
 
                 return new string[] { result };
-
-                if (thingUrl == null)
-                    return null;
             }
 
             return null;
-        }
-
-        // Adapted from
-        // https://dotnetthoughts.net/time-ago-function-for-c/
-        public string TimeAgo(DateTime dateTime)
-        {
-            string result = string.Empty;
-            var timeSpan = DateTime.UtcNow.Subtract(dateTime.ToUniversalTime());
-
-            if (timeSpan <= TimeSpan.FromSeconds(60))
-            {
-                result = string.Format("{0} seconds ago", timeSpan.Seconds);
-            }
-            else if (timeSpan <= TimeSpan.FromMinutes(60))
-            {
-                result = timeSpan.Minutes > 1 ?
-                    String.Format("about {0} minutes ago", timeSpan.Minutes) :
-                    "about a minute ago";
-            }
-            else if (timeSpan <= TimeSpan.FromHours(24))
-            {
-                result = timeSpan.Hours > 1 ?
-                    String.Format("about {0} hours ago", timeSpan.Hours) :
-                    "about an hour ago";
-            }
-            else if (timeSpan <= TimeSpan.FromDays(30))
-            {
-                result = timeSpan.Days > 1 ?
-                    String.Format("about {0} days ago", timeSpan.Days) :
-                    "yesterday";
-            }
-            else if (timeSpan <= TimeSpan.FromDays(365))
-            {
-                result = timeSpan.Days > 30 ?
-                    String.Format("about {0} months ago", timeSpan.Days / 30) :
-                    "about a month ago";
-            }
-            else
-            {
-                result = timeSpan.Days > 365 ?
-                    String.Format("about {0} years ago", timeSpan.Days / 365) :
-                    "about a year ago";
-            }
-
-            return result;
         }
 
     }

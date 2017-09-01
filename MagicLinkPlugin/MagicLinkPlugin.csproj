@@ -63,7 +63,9 @@
     <Compile Include="Handlers\GistHandler.cs" />
     <Compile Include="Handlers\ImageHandler.cs" />
     <Compile Include="Handlers\ImageLayouter.cs" />
+    <Compile Include="Handlers\YoutubeHandler.cs" />
     <Compile Include="Handlers\RedditHandler.cs" />
+    <Compile Include="Helper.cs" />
     <Compile Include="ILinkHandler.cs" />
     <Compile Include="LinkHandler.cs" />
     <Compile Include="MagicLinks.cs" />
@@ -80,6 +82,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Handlers\RedditMessage.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Handlers\YoutubeMessage.html" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

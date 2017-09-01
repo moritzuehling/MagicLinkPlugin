@@ -16,6 +16,7 @@ namespace MagicLinkPlugin
             new RedditHandler(),
             new TwitterHandler(),
             new GistHandler(),
+            new YoutubeHandler(),
             new ImageHander(),
         };
 
