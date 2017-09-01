@@ -19,10 +19,8 @@ namespace MagicLinkPlugin
 {
     class TwitterHandler : ILinkHandler
     {
-        const string CONSUMER_KEY = "DBKIqaIXjT2bMnQ11mXeJhtJ8";
-        const string CONSUMER_SECRET = "nZgj2rCFtyRaWRgzckkDzMusLS2rbWMkgESlOS85uPhHmnSblR";
-        const string ACCESS_TOKEN = "2391432427-gT1By2JvNVpFWug8cLQR5Xdwc7PiKgGGuF3L1Qe";
-        const string ACCESS_TOKEN_SECRET = "TDSstUlQSLhpPwlJwGKwBIQVmzApcB8632ttnXGvaaPuI";
+        const string CONSUMER_KEY = "[TWITTER_CONSUMER_KEY]";
+        const string CONSUMER_SECRET = "[TWITTER_CONSUMER_SECRET]";
 
         const int DefaultMaxWidth = 400;
         const int DefaultMaxHeight = 400;
@@ -66,7 +64,6 @@ namespace MagicLinkPlugin
 
             // In v1.1, all API calls require authentication
             var service = new TwitterService(CONSUMER_KEY, CONSUMER_SECRET);
-            service.AuthenticateWith(ACCESS_TOKEN, ACCESS_TOKEN_SECRET);
 
             var tweet = service.GetTweet(new GetTweetOptions
             {
