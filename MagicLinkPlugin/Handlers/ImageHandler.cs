@@ -36,8 +36,9 @@ namespace MagicLinkPlugin
         {
             var uri = new Uri(url);
             var resultingUri = await ImageResolvers.Resolve(uri);
+            var shouldProxy = (!resultingUri.StopResolving && handler != null);
 
-            using (var client = handler != null ? new HttpClient(handler) : new HttpClient())
+            using (var client = shouldProxy ? new HttpClient(handler) : new HttpClient())
             {
                 client.Timeout = TimeSpan.FromSeconds(10);
                 client.DefaultRequestHeaders.Add("User-Agent", "curl/7.54.1");
