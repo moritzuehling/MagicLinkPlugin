@@ -150,6 +150,9 @@ namespace MagicLinkPlugin
 
         string GetHtmlContent(TwitterStatus status)
         {
+            if (status.Entities.Count() == 0)
+                return status.FullText;
+
             StringBuilder res = new StringBuilder();
             var entities = status.Entities.OrderBy(a => a.StartIndex).ToArray();
 
