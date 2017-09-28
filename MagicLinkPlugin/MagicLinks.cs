@@ -13,7 +13,7 @@ namespace MagicLinkPlugin
 {
     class MagicLinks : PluginBase
     {
-        private static readonly Regex LinkPattern = new Regex(@"^<a href=""([^""]*)"">([^<]*)<\/a>$", RegexOptions.Compiled);
+        private static readonly Regex LinkPattern = new Regex(@"^\s*<a href=""([^""]*)"">([^<]*)<\/a>\s*$", RegexOptions.Compiled);
 
         public override async Task OnChatMessage(IUser sender, IEnumerable<IChannelShim> channels, string message)
         {
