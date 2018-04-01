@@ -81,7 +81,7 @@ namespace MagicLinkPlugin.Handlers
                     .Replace("@Subreddit", subreddit)
                     .Replace("@TimeAgo", timeAgo)
                     .Replace("@CommentsUrl", url)
-                    .Replace("@TargetUrl", thingUrl)
+                    .Replace("@TargetUrl", thingUrl ?? url)
                     ;
 
                 string content = "";
