@@ -151,12 +151,12 @@ namespace MagicLinkPlugin
         string GetHtmlContent(TwitterStatus status)
         {
             if (status.Entities.Count() == 0)
-                return status.FullText;
+                return status.FullText.Replace("\n", "<br>");
 
             StringBuilder res = new StringBuilder();
             var entities = status.Entities.OrderBy(a => a.StartIndex).ToArray();
 
-            res.Append(status.FullText.Substring(0, entities[0].StartIndex));
+            res.Append(status.FullText.Substring(0, entities[0].StartIndex).Replace("\n", "<br>"));
 
             for (int i = 0; i < entities.Length; i++)
             {
@@ -188,7 +188,7 @@ namespace MagicLinkPlugin
                         break;
                 }
 
-                res.Append(bridgeText);
+                res.Append(bridgeText.Replace("\n", "<br>"));
             }
 
             return res.ToString();
