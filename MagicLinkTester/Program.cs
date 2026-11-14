@@ -1,34 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace MagicLinkTester
 {
+    // Prints the messages MagicLinkPlugin would send for each URL given, or "(nothing)".
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            while (true)
+            foreach (var url in args)
             {
-                Console.Write("> ");
-                var url = Console.ReadLine();
-
-                var resolved = MagicLinkPlugin.ImageResolvers.Resolve(new Uri(url));
-                resolved.Wait();
-                Console.WriteLine("Resolved to: {0} (StopResolving: {1})", resolved.Result.Uri, resolved.Result.StopResolving);
-
-                return; 
-                /* 
-                var image = MagicLinkPlugin.ImageHander.GetImage(url);
-                image.Wait();
-
-                if (image.Result != null)
-                {
-                    Console.WriteLine("Image: {0}...", image.Result.Substring(0, Console.BufferWidth - 15));
-                }
-                */
+                Console.WriteLine("== " + url);
+                var res = await MagicLinkPlugin.LinkHandler.GetContent(url);
+                Console.WriteLine(res == null ? "(nothing)" : string.Join(Environment.NewLine + "--" + Environment.NewLine, res));
             }
         }
     }

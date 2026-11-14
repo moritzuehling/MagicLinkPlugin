@@ -1,9 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -17,6 +13,7 @@ namespace MagicLinkPlugin
             public bool StopResolving { get; set; }
         }
 
+        static readonly Task<ResolveResult?> NoResult = Task.FromResult<ResolveResult?>(null);
 
         static readonly Func<Uri, Task<ResolveResult?>>[] ResolveFunctions = new Func<Uri, Task<ResolveResult?>>[]
         {
@@ -33,15 +30,16 @@ namespace MagicLinkPlugin
                 try
                 {
                     var newUri = await resolver(uri);
-                    if (newUri != null && newUri.HasValue)
+                    if (newUri.HasValue)
                     {
                         uri = newUri.Value.Uri;
                         if (newUri.Value.StopResolving)
                             return newUri.Value;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.WriteLine($"[MagicLink] resolving {uri} failed: {ex.Message}");
                 }
             }
 
@@ -59,29 +57,26 @@ namespace MagicLinkPlugin
 
             if (uri.AbsolutePath.StartsWith("/a/") || uri.AbsolutePath.StartsWith("/gallery/"))
             {
-                const string endpoint = "https://api.imgur.com/3/album/";
+                // Albums need imgur's API, and with it a client ID.
+                var clientId = Environment.GetEnvironmentVariable("MAGICLINK_IMGUR_CLIENT_ID");
+                if (string.IsNullOrEmpty(clientId))
+                    return null;
 
                 var albumId = uri.AbsolutePath.Split('/')[2];
+                var res = await Helper.GetString("https://api.imgur.com/3/album/" + albumId, authorization: "Client-ID " + clientId);
+                var response = JObject.Parse(res);
+                if (!response["success"].ToObject<bool>())
+                    return null;
 
-                using (var client = new HttpClient())
+                var images = (JArray)response["data"]["images"];
+                if (images.Count == 0)
+                    return null;
+
+                return new ResolveResult
                 {
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                    client.DefaultRequestHeaders.Add("Authorization", "Client-ID 493d66cf232857f");
-                    var res = await client.GetStringAsync(endpoint + albumId);
-                    var response = JObject.Parse(res);
-                    if (!response["success"].ToObject<bool>())
-                        return null;
-
-                    var images = (JArray)response["data"]["images"];
-                    if (images.Count == 0)
-                        return null;
-
-                    return new ResolveResult
-                    {
-                        Uri = new Uri(images[0]["link"].ToObject<string>()),
-                        StopResolving = true
-                    };
-                }
+                    Uri = new Uri(images[0]["link"].ToObject<string>()),
+                    StopResolving = true
+                };
             }
 
             var arr = uri.AbsolutePath.Split('/');
@@ -89,7 +84,7 @@ namespace MagicLinkPlugin
             {
                 return new ResolveResult
                 {
-                    Uri = new Uri("http://i.imgur.com/" + arr[1] + ".jpg"),
+                    Uri = new Uri("https://i.imgur.com/" + arr[1] + ".jpg"),
                     StopResolving = false
                 };
             }
@@ -100,14 +95,14 @@ namespace MagicLinkPlugin
         public static Task<ResolveResult?> Resolve9Gag(Uri uri)
         {
             if (uri.Host != "9gag.com" && !uri.Host.EndsWith(".9gag.com"))
-                return null;
+                return NoResult;
 
             var query = uri.AbsolutePath.Split('/');
             if (query.Length < 3)
-                return null;
+                return NoResult;
 
             if (query[1] != "gag")
-                return null;
+                return NoResult;
 
             return Task.FromResult<ResolveResult?>(new ResolveResult
             {
@@ -119,15 +114,15 @@ namespace MagicLinkPlugin
         public static Task<ResolveResult?> ResolveYouTube(Uri uri)
         {
             if (uri.Host != "youtube.com" && !uri.Host.EndsWith(".youtube.com"))
-                return null;
+                return NoResult;
 
             if (uri.AbsolutePath != "/watch")
-                return null;
+                return NoResult;
 
             var query = HttpUtility.ParseQueryString(uri.Query);
 
             if (string.IsNullOrEmpty(query["v"]))
-                return null;
+                return NoResult;
 
             return Task.FromResult<ResolveResult?>(new ResolveResult
             {
@@ -139,10 +134,10 @@ namespace MagicLinkPlugin
         public static Task<ResolveResult?> ResolveFacebookFix(Uri uri)
         {
             if (uri.Host != "fbcdn.net" && !uri.Host.EndsWith(".fbcdn.net"))
-                return null;
+                return NoResult;
 
             if (!uri.AbsolutePath.EndsWith(".png") && !uri.AbsolutePath.EndsWith(".jpg") && !uri.AbsolutePath.EndsWith(".jpeg") && !uri.AbsolutePath.EndsWith(".gif"))
-                return null;
+                return NoResult;
 
             return Task.FromResult<ResolveResult?>(new ResolveResult
             {
