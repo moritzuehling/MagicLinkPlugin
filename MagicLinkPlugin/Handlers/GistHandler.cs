@@ -1,26 +1,22 @@
-﻿using Highlight;
-using Highlight.Engines;
-using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.IO;
+﻿using Newtonsoft.Json.Linq;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MagicLinkPlugin.Handlers
 {
+    // Plain code: the highlighter used before needs System.Drawing, which .NET only has on Windows.
     class GistHandler : ILinkHandler
     {
         const int MAX_FILES = 3;
         const int MAX_LINES = 25;
         const int MAX_COLUMN = 200;
+        const string USER_AGENT = "MumbleGistPreview";
 
-        public async Task<string[]> TryExtractContent(string url, HttpClientHandler handler)
+        public async Task<string[]> TryExtractContent(string url)
         {
-            var uri = new Uri(url);
+            var uri = new System.Uri(url);
             if (uri.Host != "gist.github.com")
                 return null;
 
@@ -31,35 +27,23 @@ namespace MagicLinkPlugin.Handlers
             if (parts.Length != 3)
                 return null;
 
-            var gistId = parts[2];
-
-
-            return await GetFiles(gistId);
+            return await GetFiles(parts[2]);
         }
-
 
         public async Task<string[]> GetFiles(string gist)
         {
-            using (var wc = new WebClient())
-            {
-                wc.Headers[HttpRequestHeader.UserAgent] = "MumbleGistPreview";
-                var result = await wc.DownloadStringTaskAsync("https://api.github.com/gists/" + gist);
-                var obj = JObject.Parse(result);
-                var files = obj["files"];
+            var result = await Helper.GetString("https://api.github.com/gists/" + System.Uri.EscapeDataString(gist), USER_AGENT);
+            var obj = JObject.Parse(result);
 
-                return files
-                    .Take(MAX_FILES)
-                    .Select(a => FormatFile
-                    (
-                        ((JProperty)a).Value["filename"].ToObject<string>(),
-                        ((JProperty)a).Value["language"].ToObject<string>(),
-                        ((JProperty)a).Value["content"].ToObject<string>())
-                    )
-                    .ToArray();
-            }
+            return obj["files"]
+                .Take(MAX_FILES)
+                .Select(a => FormatFile(
+                    ((JProperty)a).Value["filename"].ToObject<string>(),
+                    ((JProperty)a).Value["content"].ToObject<string>()))
+                .ToArray();
         }
 
-        public string FormatFile(string fileName, string languageString, string content)
+        public string FormatFile(string fileName, string content)
         {
             var length = content.Split('\n').Length;
 
@@ -71,24 +55,19 @@ namespace MagicLinkPlugin.Handlers
                 .Select(a => a.Length < MAX_COLUMN ? a : a.Substring(0, MAX_COLUMN))
                 .ToArray();
 
-            var minTabCount = cleanCodeArr.Where(a => a.Length > 0).Min(a => CountAtBeginning(a, '\t'));
-            var minSpaceCount = cleanCodeArr.Where(a => a.Length > 0).Min(a => CountAtBeginning(a, ' '));
+            var nonEmpty = cleanCodeArr.Where(a => a.Length > 0).ToArray();
+            var minTabCount = nonEmpty.Select(a => CountAtBeginning(a, '\t')).DefaultIfEmpty(0).Min();
+            var minSpaceCount = nonEmpty.Select(a => CountAtBeginning(a.Substring(minTabCount), ' ')).DefaultIfEmpty(0).Min();
 
             cleanCodeArr = cleanCodeArr
                 .Select(a => a.Length == 0 ? a : a.Substring(minTabCount).Substring(minSpaceCount))
                 .Select(a => a.Replace("\t", "    "))
                 .ToArray();
 
-            string cleanCode = string.Join("\n", cleanCodeArr);
-
             StringBuilder res = new StringBuilder();
-            res.AppendFormat("<b>{0}</b>:", fileName);
+            res.AppendFormat("<b>{0}</b>:", WebUtility.HtmlEncode(fileName));
             res.Append("<pre>");
-            var high = new Highlighter(new HtmlEngine());
-            var highlightedCode = high.Highlight(languageString, cleanCode).Replace("background-color: Transparent", "");
-
-            res.Append(highlightedCode);
-
+            res.Append(WebUtility.HtmlEncode(string.Join("\n", cleanCodeArr)));
             res.Append("</pre>");
 
             if (length > MAX_LINES)

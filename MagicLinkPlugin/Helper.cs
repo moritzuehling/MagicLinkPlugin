@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using System;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -12,34 +12,78 @@ namespace MagicLinkPlugin
 {
     public static class Helper
     {
-        public static async Task<string> GetRoundImageUrl(string url, int size)
+        public const int MAX_DOWNLOAD = 10 * 1024 * 1024;
+
+        // Images with more pixels than this aren't decoded: a small file can unpack to gigabytes.
+        const long MAX_PIXELS = 40_000_000;
+
+        // One client for every request: 10 seconds each, at most 10 MiB per response.
+        static readonly HttpClient Http = new HttpClient
         {
-            using (var client = new HttpClient())
-            {
-                client.Timeout = TimeSpan.FromSeconds(10);
+            Timeout = TimeSpan.FromSeconds(10),
+            MaxResponseContentBufferSize = MAX_DOWNLOAD,
+        };
 
-                using (var stream = await client.GetStreamAsync(url))
-                using (var source = Image.FromStream(stream))
-                using (var target = new Bitmap(size, size))
-                using (var graphics = Graphics.FromImage(target))
-                using (var textureBrush = new TextureBrush(source))
-                using (var ms = new MemoryStream())
-                {
-                    textureBrush.ScaleTransform(size / (float)source.Width, size / (float)source.Width);
-                    graphics.CompositingQuality = CompositingQuality.HighQuality;
-                    graphics.SmoothingMode = SmoothingMode.HighQuality;
-                    graphics.Clear(Color.White);
-                    graphics.FillEllipse(textureBrush, new Rectangle(0, 0, 48, 48));
-
-                    target.Save(ms, ImageFormat.Png);
-
-                    return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
-                  }
-
-            }
+        public static async Task<HttpResponseMessage> Send(HttpMethod method, Uri uri, string userAgent = null, string authorization = null)
+        {
+            using var request = new HttpRequestMessage(method, uri);
+            if (userAgent != null)
+                request.Headers.UserAgent.ParseAdd(userAgent);
+            if (authorization != null)
+                request.Headers.TryAddWithoutValidation("Authorization", authorization);
+            request.Headers.Accept.ParseAdd("*/*");
+            return await Http.SendAsync(request);
         }
 
+        public static async Task<string> GetString(string url, string userAgent = null, string authorization = null)
+        {
+            using var res = await Send(HttpMethod.Get, new Uri(url), userAgent, authorization);
+            res.EnsureSuccessStatusCode();
+            return await res.Content.ReadAsStringAsync();
+        }
 
+        public static async Task<byte[]> GetBytes(string url)
+        {
+            using var res = await Send(HttpMethod.Get, new Uri(url));
+            res.EnsureSuccessStatusCode();
+            return await res.Content.ReadAsByteArrayAsync();
+        }
+
+        // Decodes the first frame, refusing images too large to decode safely.
+        public static Image LoadImage(byte[] data)
+        {
+            var info = Image.Identify(data);
+            if ((long)info.Width * info.Height > MAX_PIXELS)
+                throw new InvalidDataException($"image too large to decode: {info.Width}x{info.Height}");
+            return Image.Load(new DecoderOptions { MaxFrames = 1 }, data);
+        }
+
+        // A round avatar, transparent outside the circle so it suits Mumble's light and dark themes.
+        public static async Task<string> GetRoundImageUrl(string url, int size)
+        {
+            using var image = LoadImage(await GetBytes(url)).CloneAs<Rgba32>();
+            image.Mutate(x => x.Resize(size, size));
+
+            var radius = size / 2f;
+            image.ProcessPixelRows(rows =>
+            {
+                for (var y = 0; y < rows.Height; y++)
+                {
+                    var row = rows.GetRowSpan(y);
+                    for (var x = 0; x < row.Length; x++)
+                    {
+                        var dx = x + 0.5f - radius;
+                        var dy = y + 0.5f - radius;
+                        if (dx * dx + dy * dy > radius * radius)
+                            row[x] = new Rgba32(0, 0, 0, 0);
+                    }
+                }
+            });
+
+            using var ms = new MemoryStream();
+            image.SaveAsPng(ms);
+            return "data:image/png;base64," + Convert.ToBase64String(ms.ToArray());
+        }
 
         // Adapted from
         // https://dotnetthoughts.net/time-ago-function-for-c/
@@ -86,116 +130,11 @@ namespace MagicLinkPlugin
             return result;
         }
 
-        public static async Task<Image> GetBitmap(Uri uri)
+        public static string EncodeAsString(this Image img, int quality = 90)
         {
-            using (var client = new HttpClient())
-            {
-                client.Timeout = TimeSpan.FromSeconds(10);
-                var data = await client.GetByteArrayAsync(uri);
-                using (var ms = new MemoryStream(data))
-                {
-                    return Image.FromStream(ms);
-                }
-            }
+            using var ms = new MemoryStream();
+            img.SaveAsJpeg(ms, new JpegEncoder { Quality = quality });
+            return $"<img src=\"data:image/jpeg;base64,{ Convert.ToBase64String(ms.ToArray()) }\" alt=\"\">";
         }
-
-        public static string EncodeAsString(this Image img, long quality = 90)
-        {
-            var encoder = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
-            var encParams = new EncoderParameters() { Param = new[] { new EncoderParameter(Encoder.Quality, quality) } };
-
-            using (var ms = new MemoryStream())
-            {
-                img.Save(ms, encoder, encParams);
-                return $"<img src=\"data:image/jpeg;base64,{ Convert.ToBase64String(ms.ToArray()) }\" alt=\"\">";
-            }
-        }
-        
-
-        public static  GraphicsPath MakeRoundedRect(RectangleF rect, float xradius, float yradius, bool round_ul = true, bool round_ur = true, bool round_lr = true, bool round_ll = true)
-        {
-            // Make a GraphicsPath to draw the rectangle.
-            PointF point1, point2;
-            GraphicsPath path = new GraphicsPath();
-
-            // Upper left corner.
-            if (round_ul)
-            {
-                RectangleF corner = new RectangleF(
-                    rect.X, rect.Y,
-                    2 * xradius, 2 * yradius);
-                path.AddArc(corner, 180, 90);
-                point1 = new PointF(rect.X + xradius, rect.Y);
-            }
-            else point1 = new PointF(rect.X, rect.Y);
-
-            // Top side.
-            if (round_ur)
-                point2 = new PointF(rect.Right - xradius, rect.Y);
-            else
-                point2 = new PointF(rect.Right, rect.Y);
-            path.AddLine(point1, point2);
-
-            // Upper right corner.
-            if (round_ur)
-            {
-                RectangleF corner = new RectangleF(
-                    rect.Right - 2 * xradius, rect.Y,
-                    2 * xradius, 2 * yradius);
-                path.AddArc(corner, 270, 90);
-                point1 = new PointF(rect.Right, rect.Y + yradius);
-            }
-            else point1 = new PointF(rect.Right, rect.Y);
-
-            // Right side.
-            if (round_lr)
-                point2 = new PointF(rect.Right, rect.Bottom - yradius);
-            else
-                point2 = new PointF(rect.Right, rect.Bottom);
-            path.AddLine(point1, point2);
-
-            // Lower right corner.
-            if (round_lr)
-            {
-                RectangleF corner = new RectangleF(
-                    rect.Right - 2 * xradius,
-                    rect.Bottom - 2 * yradius,
-                    2 * xradius, 2 * yradius);
-                path.AddArc(corner, 0, 90);
-                point1 = new PointF(rect.Right - xradius, rect.Bottom);
-            }
-            else point1 = new PointF(rect.Right, rect.Bottom);
-
-            // Bottom side.
-            if (round_ll)
-                point2 = new PointF(rect.X + xradius, rect.Bottom);
-            else
-                point2 = new PointF(rect.X, rect.Bottom);
-            path.AddLine(point1, point2);
-
-            // Lower left corner.
-            if (round_ll)
-            {
-                RectangleF corner = new RectangleF(
-                    rect.X, rect.Bottom - 2 * yradius,
-                    2 * xradius, 2 * yradius);
-                path.AddArc(corner, 90, 90);
-                point1 = new PointF(rect.X, rect.Bottom - yradius);
-            }
-            else point1 = new PointF(rect.X, rect.Bottom);
-
-            // Left side.
-            if (round_ul)
-                point2 = new PointF(rect.X, rect.Y + yradius);
-            else
-                point2 = new PointF(rect.X, rect.Y);
-            path.AddLine(point1, point2);
-
-            // Join with the start point.
-            path.CloseFigure();
-
-            return path;
-        }
-
     }
 }

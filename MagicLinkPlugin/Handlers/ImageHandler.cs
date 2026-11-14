@@ -1,30 +1,25 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web;
-using static MagicLinkPlugin.ImageResolvers;
 
 namespace MagicLinkPlugin
 {
-    public class ImageHander : ILinkHandler
+    public class ImageHandler : ILinkHandler
     {
-        const int MAX_IMAGE_SIZE = 10 * 1024 * 1024;
         const int MAX_DIRECT_SEND = 1 * 1024 * 1024;
         const int MAX_WIDTH = 400;
         const int MAX_HEIGHT = 800;
+        // Some hosts, such as imgur, answer curl with the image itself and browsers with a page around it.
+        const string USER_AGENT = "curl/7.54.1";
 
         private const string ResizeImg = @"({2})<br><a href=""{0}""><img src=""{1}"" alt=""image"" /></a>";
 
-        public async Task<string[]> TryExtractContent(string url, HttpClientHandler handler)
+        public async Task<string[]> TryExtractContent(string url)
         {
-            var img = await GetImage(url, handler);
+            var img = await GetImage(url);
 
             if (img == null)
                 return null;
@@ -32,28 +27,15 @@ namespace MagicLinkPlugin
             return new string[] { String.Format(ResizeImg, url, img, GetFileSizeString(img.Length)) };
         }
 
-        public async Task<string> GetImage(string url, HttpClientHandler handler)
+        public async Task<string> GetImage(string url)
         {
-            var uri = new Uri(url);
-            var resultingUri = await ImageResolvers.Resolve(uri);
-            var shouldProxy = (!resultingUri.StopResolving && handler != null);
+            var resultingUri = await ImageResolvers.Resolve(new Uri(url));
+            var isImage = resultingUri.StopResolving || await IsImage(resultingUri.Uri);
+            if (!isImage)
+                return null;
 
-            using (var client = shouldProxy ? new HttpClient(handler) : new HttpClient())
-            {
-                client.Timeout = TimeSpan.FromSeconds(10);
-                client.DefaultRequestHeaders.Add("User-Agent", "curl/7.54.1");
-                client.DefaultRequestHeaders.Add("Accept", "*/*");
-                var isImage = resultingUri.StopResolving || await IsImage(resultingUri.Uri, client);
-                if (!isImage)
-                    return null;
-
-                var data = await DownloadAndDownsizeImage(resultingUri.Uri, client);
-
-                if (data == null)
-                    return null;
-
-                return "data:" + data.Item2 + ";base64," + Convert.ToBase64String(data.Item1);
-            }
+            var (data, type) = await DownloadAndDownsizeImage(resultingUri.Uri);
+            return "data:" + type + ";base64," + Convert.ToBase64String(data);
         }
 
         static string GetFileSizeString(int size)
@@ -67,58 +49,33 @@ namespace MagicLinkPlugin
             return (size / (1024.0 * 1024.0)).ToString("0.00") + " MiB";
         }
 
-        async Task<bool> IsImage(Uri url, HttpClient client)
+        static async Task<bool> IsImage(Uri url)
         {
-            var res = await client.SendAsync(new HttpRequestMessage
-            {
-                RequestUri = url,
-                Method = HttpMethod.Head,
-            });
-
-            var type = res.Content.Headers.ContentType.MediaType;
-
-            return type.StartsWith("image/");
+            using var res = await Helper.Send(HttpMethod.Head, url, USER_AGENT);
+            return res.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true;
         }
 
-        public static async Task<Tuple<byte[], string>> DownloadAndDownsizeImage(Uri uri, HttpClient client, int maxWidth = MAX_WIDTH, int maxHeight = MAX_HEIGHT)
+        // The image as it is if it's small enough, else scaled down to fit and sent as JPEG.
+        public static async Task<(byte[], string)> DownloadAndDownsizeImage(Uri uri, int maxWidth = MAX_WIDTH, int maxHeight = MAX_HEIGHT)
         {
-            using (var res = await client.GetAsync(uri))
-            {
-                if (res.Content.Headers.ContentLength > MAX_IMAGE_SIZE)
-                    throw new Exception("Image too big!");
+            using var res = await Helper.Send(HttpMethod.Get, uri, USER_AGENT);
+            res.EnsureSuccessStatusCode();
+            var content = await res.Content.ReadAsByteArrayAsync();
 
-                byte[] content = await res.Content.ReadAsByteArrayAsync();
+            using var img = Helper.LoadImage(content);
+            var type = res.Content.Headers.ContentType?.MediaType;
+            if (img.Width <= maxWidth && img.Height <= maxHeight && content.Length <= MAX_DIRECT_SEND && type?.StartsWith("image/") == true)
+                return (content, type);
 
-                using (var ms = new MemoryStream(content))
-                using (var img = Image.FromStream(ms))
-                {
-                    if (img.Width <= maxWidth && img.Height <= maxHeight && content.Length <= MAX_DIRECT_SEND)
-                        return new Tuple<byte[], string>(content, res.Content.Headers.ContentType.MediaType);
+            double wFactor = Math.Max((double)img.Width / maxWidth, 1.0);
+            double hFactor = Math.Max((double)img.Height / maxHeight, 1.0);
+            double factor = Math.Max(wFactor, hFactor);
 
-                    double wFactor = Math.Max((double)img.Width / maxWidth, 1.0);
-                    double hFactor = Math.Max((double)img.Height / maxHeight, 1.0);
+            img.Mutate(x => x.Resize(Math.Max((int)(img.Width / factor), 1), Math.Max((int)(img.Height / factor), 1)));
 
-                    double factor = wFactor > hFactor ? wFactor : hFactor;
-
-                    int newWidth = (int)(img.Width / factor);
-                    int newHeight = (int)(img.Height / factor);
-
-                    using (var b = new Bitmap(newWidth, newHeight))
-                    using (var g = Graphics.FromImage(b))
-                    {
-                        g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                        g.DrawImage(img, new Rectangle(0, 0, newWidth, newHeight));
-
-                        using (var resMs = new MemoryStream())
-                        {
-                            b.Save(resMs, ImageFormat.Jpeg);
-                            resMs.Flush();
-                            return new Tuple<byte[], string>(resMs.ToArray(), "image/jpeg");
-                        }
-                    }
-
-                }
-            }
+            using var ms = new MemoryStream();
+            img.SaveAsJpeg(ms);
+            return (ms.ToArray(), "image/jpeg");
         }
     }
 }

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace MagicLinkPlugin
 {
@@ -12,10 +7,6 @@ namespace MagicLinkPlugin
         /// <summary>
         /// Tries to extract content from a link, returns null if it fails.
         /// </summary>
-        /// <param name="url"></param>
-        /// <returns></returns>
-        Task<string[]> TryExtractContent(string url, HttpClientHandler handler);
-
-
+        Task<string[]> TryExtractContent(string url);
     }
 }
