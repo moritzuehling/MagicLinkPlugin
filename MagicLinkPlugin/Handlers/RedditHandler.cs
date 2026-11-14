@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 
 namespace MagicLinkPlugin.Handlers
 {
+    // Reddit's API refuses clients without an approved app, but its oEmbed endpoint, meant for embedding posts in other sites,
+    // answers without one. It gives the title and author; score, comments, age and the post's text aren't part of it.
     class RedditHandler : ILinkHandler
     {
         // Reddit refuses requests without a descriptive User-Agent.
@@ -40,59 +42,22 @@ namespace MagicLinkPlugin.Handlers
             if (path[3] != "comments")
                 return null;
 
-            var sub = path[2];
-            var thing = path[4];
+            var subreddit = path[2];
+            var postUrl = "https://www.reddit.com/r/" + Uri.EscapeDataString(subreddit) + "/comments/" + Uri.EscapeDataString(path[4]) + "/";
 
-            var redditEndpoint = "https://www.reddit.com/r/" + Uri.EscapeDataString(sub) + "/comments/" + Uri.EscapeDataString(thing) + "/.json";
-
-            var response = await Helper.GetString(redditEndpoint, USER_AGENT);
-            var res = JArray.Parse(response);
-            var data = res[0]?["data"]?["children"]?[0]?["data"];
-            var thingUrl = WebUtility.HtmlDecode(data?["url"]?.ToObject<string>());
-            var domain = data?["domain"]?.ToObject<string>();
-            var selftextHtml = data?["selftext_html"]?.ToObject<string>();
-            var title = data?["title"]?.ToObject<string>();
-            var author = data?["author"]?.ToObject<string>();
-            var subreddit = data?["subreddit"]?.ToObject<string>();
-            var score = data?["ups"]?.ToObject<int>();
-            var createdUtc = data?["created_utc"]?.ToObject<double>() ?? 0;
-            var numComments = data?["num_comments"]?.ToObject<int>();
-            var isSelf = data?["is_self"]?.ToObject<bool>();
-
-            var scoreString = score.ToString();
-            var scoreAlignment = "".PadLeft(Math.Max(3 - (scoreString.Length) / 2, 0), '.');
-            var scoreAlignment2 = scoreString.Length % 2 == 0 ? "." : "";
-            var time = DateTime.UnixEpoch.AddSeconds(createdUtc);
-            var timeAgo = time.TimeAgo();
+            var response = await Helper.GetString("https://www.reddit.com/oembed?url=" + Uri.EscapeDataString(postUrl), USER_AGENT);
+            var data = JObject.Parse(response);
+            var title = data["title"]?.ToObject<string>();
+            var author = data["author_name"]?.ToObject<string>();
+            if (string.IsNullOrEmpty(title))
+                return null;
 
             string result = Template
-                .Replace("@ScoreAlign2", scoreAlignment2)
-                .Replace("@ScoreAlign", scoreAlignment)
-                .Replace("@Score", scoreString)
-                .Replace("@NumComments", numComments.ToString())
-                .Replace("@Domain", WebUtility.HtmlEncode(domain))
                 .Replace("@Title", WebUtility.HtmlEncode(title))
-                .Replace("@Author", WebUtility.HtmlEncode(author))
+                .Replace("@Author", WebUtility.HtmlEncode(author ?? "[deleted]"))
                 .Replace("@Subreddit", WebUtility.HtmlEncode(subreddit))
-                .Replace("@TimeAgo", timeAgo)
-                .Replace("@CommentsUrl", url)
-                .Replace("@TargetUrl", thingUrl ?? url)
+                .Replace("@CommentsUrl", url) // from Mumble's HTML, so already escaped
                 ;
-
-            string content = "";
-
-            if (!string.IsNullOrEmpty(selftextHtml))
-            {
-                content = WebUtility.HtmlDecode(selftextHtml);
-            }
-            else if (isSelf == false)
-            {
-                var results = await LinkHandler.GetContent(thingUrl);
-                if (results != null)
-                    content = string.Join("<br><hr>" + Environment.NewLine, results);
-            }
-
-            result = result.Replace("@Content", content);
 
             return new string[] { result };
         }
